@@ -147,27 +147,22 @@ def sample_and_predict(n, latent_dim, test_size, max_decoder_seq_length, x_train
     return np.mean(results), np.std(results)
 
 def write_result(n, latent_dim, result):
-    # add result to a csv file
-    # file structure: n, latent_dim, result
-    # where result is a list of past results
-    
-    if os.path.exists("results.csv"):
+    # add results to csv file
+    # if n, latent_dim not in csv, add new row
+    # if n, latent_dim in csv, append mean and std at the end of the row
+    try:
         with open("results.csv", "r") as f:
             lines = f.readlines()
-            if len(lines) == 0:
-                lines = []
-            else:
-                lines = lines[0].strip().split("\n")
-            if len(lines) == 0 or len(lines[-1].split(",")) == 3:
-                lines.append(f"{n},{latent_dim},{result}")
-            else:
-                lines[-1] += f",{result}"
-    else:
-        # write header if file does not exist
-        lines = ["n,latent_dim,result"]
-        lines += [f"{n},{latent_dim},{result}"]
+    except:
+        lines = ["n,latent_dim,mean,std\n"]
     with open("results.csv", "w") as f:
-        f.write("\n".join(lines))
+        for line in lines:
+            if f"{n},{latent_dim}" in line:
+                f.write(line[:-2] + f",{result[0]},{result[1]}\n")
+            else:
+                f.write(line)
+        if not any([f"{n},{latent_dim}" in line for line in lines]):
+            f.write(f"{n},{latent_dim},{result[0]},{result[1]}\n")
         
 if __name__ == "__main__":
     test_size = 1000
