@@ -12,11 +12,24 @@ def SWAP(*qubits):
     layer.take(pc.circuit.CNOT(qubits[0], qubits[1]))
     return layer
 
+def add_noise(state, qubit, noise):
+    rand = np.random.rand()
+    if rand < noise:
+        direction = np.random.randint(0, 3)
+        if direction == 0:
+            pc.circuit.X(qubit).forward(state)
+        elif direction == 1:
+            pc.circuit.Y(qubit).forward(state)
+        elif direction == 2:
+            pc.circuit.Z(qubit).forward(state)
+    return state
+        
 class Quantum_Strategy():
-    def __init__(self, n):
+    def __init__(self, n, noise=0):
         self.n = n
         self.n_games = n
         self.n_qubits = 4 * n
+        self.noise = noise
         
     def state_prepare(self):
         '''
@@ -25,9 +38,15 @@ class Quantum_Strategy():
         psi = pc.stabilizer.zero_state(self.n_qubits)
         for i in range(self.n):
             pc.circuit.H(2 * i).forward(psi)
+            add_noise(psi, 2 * i, self.noise)
             pc.circuit.CNOT(2 * i, 2 * self.n + 2 * i).forward(psi)
+            add_noise(psi, 2 * i, self.noise)
+            add_noise(psi, 2 * self.n + 2 * i, self.noise)
             pc.circuit.H(2 * i + 1).forward(psi)
+            add_noise(psi, 2 * i + 1, self.noise)
             pc.circuit.CNOT(2 * i + 1, 2 * self.n + 2 * i + 1).forward(psi)
+            add_noise(psi, 2 * i + 1, self.noise)
+            add_noise(psi, 2 * self.n + 2 * i + 1, self.noise)
         return psi
         # directly construct Bell states, turns out to be slower
         # n = 2 * self.n
@@ -77,6 +96,8 @@ class Quantum_Strategy():
             player = int(i >= self.n)
             rot = self.get_rotation(inp[i], player, [2 * i, 2 * i + 1])
             rot.forward(psi)
+            add_noise(psi, 2 * i, self.noise)
+            add_noise(psi, 2 * i + 1, self.noise)
         return psi
     
     def sample(self, state, return_log2prob=False):
@@ -100,7 +121,7 @@ class Quantum_Strategy():
         out2 = sample.reshape(2, -1)[1].reshape(-1, 2)
         return check_answer(inp1, inp2, out1, out2)
     
-    def check_input_output(self, inp, output):
+    def check_input_output(self, inp, output, flatten=True):
         # inp {0, 1}
         length = len(inp)
         inp = bit_to_num(inp.reshape(-1, 2)).reshape(length, -1)
@@ -108,16 +129,19 @@ class Quantum_Strategy():
         inp2 = inp.reshape(length, 2, -1)[:, 1].reshape(-1)
         out1 = output.reshape(length, 2, -1)[:, 0].reshape(-1, 2)
         out2 = output.reshape(length, 2, -1)[:, 1].reshape(-1, 2)
-        return check_answer(inp1, inp2, out1, out2)
-
+        if flatten:
+            return check_answer(inp1, inp2, out1, out2)
+        return check_answer(inp1, inp2, out1, out2).reshape(length, -1)
+    
     def produce_one_data(self):
         inp = np.random.randint(0, 4, size=2 * self.n)
         sample = self.compute_and_sample(inp)
         return inp, sample
     
-    def produce_data(self, n_samples, inp_as_bit=True, save_path=None):
+    def produce_data(self, n_samples, inp_as_bit=True, save_path=None, progress_bar=True):
         data = {'X': [], 'Y': []}
-        for _ in tqdm(range(n_samples)):
+        iterator = range(n_samples) if not progress_bar else tqdm(range(n_samples))
+        for _ in iterator:
             inp, sample = self.produce_one_data()
             if inp_as_bit:
                 inp = num_to_bit(inp)

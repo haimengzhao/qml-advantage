@@ -140,11 +140,15 @@ def sample_and_predict(n, latent_dim, test_size, max_decoder_seq_length, x_train
         # for trying out decoding.
         input_seq = x_test[seq_index : seq_index + 1]
         decoded_sentence = decode_sequence(input_seq)
-        pred[seq_index] = decoded_sentence[:-1]
+        try:
+            pred[seq_index] = decoded_sentence[:-1]
+        except:
+            print('decode stop early: ', decoded_sentence)
         
     qs = Quantum_Strategy(n)
-    results = qs.check_input_output(np.argmax(x_test[:test_size], axis=-1), pred)
-    return np.mean(results), np.std(results)
+    results = qs.check_input_output(np.argmax(x_test[:test_size], axis=-1), pred, flatten=False)
+    check = np.sum(results > 0.8 * n)
+    return np.mean(check), np.std(check)
 
 def write_result(n, latent_dim, result):
     # add results to csv file
@@ -166,11 +170,14 @@ def write_result(n, latent_dim, result):
         
 if __name__ == "__main__":
     test_size = 1000
-    for n in [1, 2, 3, 4, 5]:
-        for latent_dim in [8, 16, 32, 64, 128, 256]:
-            print("#"*20 + f"n={n}, latent_dim={latent_dim}" + "#"*20)
-            x_train, x_test, decoder_input_data, decoder_target_data, max_decoder_seq_length = load_data(n)
-            model = build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_target_data)
-            result = sample_and_predict(n, latent_dim, test_size, max_decoder_seq_length, x_train, x_test)
-            print(result)
-            write_result(n, latent_dim, result)
+    for n in [5, 6, 7, 8, 9, 10]:
+        for latent_dim in [4, 8, 16, 32, 64, 128, 256, 512]:
+            if n == 5 and latent_dim in [4, 8, 16, 32, 64]:
+                continue
+            for run in range(5):
+                print("#"*20 + f"n={n}, latent_dim={latent_dim}, run={run}" + "#"*20)
+                x_train, x_test, decoder_input_data, decoder_target_data, max_decoder_seq_length = load_data(n)
+                model = build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_target_data)
+                result = sample_and_predict(n, latent_dim, test_size, max_decoder_seq_length, x_train, x_test)
+                print(result)
+                write_result(n, latent_dim, result)
