@@ -2,7 +2,7 @@ import argparse
 from quantum_model import Quantum_Strategy
 
 def produce_data(n, n_samples, save_path):
-    save_path = save_path if save_path is not None else f'./data_{n}.npz'
+    save_path = save_path if save_path is not None else f'./data/data_{n}.npz'
     qs = Quantum_Strategy(n)
     qs.produce_data(n_samples, save_path=save_path)
     
