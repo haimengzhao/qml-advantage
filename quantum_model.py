@@ -129,6 +129,7 @@ class Quantum_Strategy():
         inp2 = inp.reshape(length, 2, -1)[:, 1].reshape(-1)
         out1 = output.reshape(length, 2, -1)[:, 0].reshape(-1, 2)
         out2 = output.reshape(length, 2, -1)[:, 1].reshape(-1, 2)
+        # print(inp1, inp2, out1, out2)
         if flatten:
             return check_answer(inp1, inp2, out1, out2)
         return check_answer(inp1, inp2, out1, out2).reshape(length, -1)

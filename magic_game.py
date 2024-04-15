@@ -16,6 +16,7 @@ def check_answer(in_1, in_2, out_1, out_2):
     # check the thrid output bit
     assert np.sum(np.sum(out_1_full, axis=-1) % 2 == 1) == len(in_1)
     assert np.sum(np.sum(out_2_full, axis=-1) % 2 == 0) == len(in_1)
+    # print(out_1_full, out_2_full)
     
     check = (out_1_full[np.arange(len(in_1)), in_2-1] == out_2_full[np.arange(len(in_1)), in_1-1]).reshape(-1).astype(int)
     
