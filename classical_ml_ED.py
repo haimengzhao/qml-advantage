@@ -7,6 +7,8 @@ from quantum_model import Quantum_Strategy
 from tqdm import tqdm
 from tqdm.keras import TqdmCallback
 
+threshold = 0.95
+
 def load_data(n, test_size):
     data = np.load(f"./data/data_{n}.npz")
     data_size = len(data['X'])
@@ -32,7 +34,7 @@ def load_data(n, test_size):
 def build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_target_data, verbose=0):
     # Define an input sequence and process it.
     encoder_inputs = keras.Input(shape=(None, 2))
-    encoder = keras.layers.GRU(latent_dim, return_state=True)
+    encoder = keras.layers.GRU(latent_dim, return_state=True, bias_initializer=keras.initializers.Constant(-1.0))
     encoder_outputs, state_h = encoder(encoder_inputs)
 
     # We discard `encoder_outputs` and only keep the states.
@@ -44,7 +46,7 @@ def build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_ta
     # We set up our decoder to return full output sequences,
     # and to return internal states as well. We don't use the
     # return states in the training model, but we will use them in inference.
-    decoder_lstm = keras.layers.GRU(latent_dim, return_sequences=True, return_state=True)
+    decoder_lstm = keras.layers.GRU(latent_dim, return_sequences=True, return_state=True, bias_initializer=keras.initializers.Constant(-1.0))
     decoder_outputs, _, = decoder_lstm(decoder_inputs, initial_state=encoder_states)
     decoder_dense = keras.layers.Dense(4, activation="softmax")
     decoder_outputs = decoder_dense(decoder_outputs)
@@ -54,12 +56,12 @@ def build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_ta
     model = keras.Model([encoder_inputs, decoder_inputs], decoder_outputs)
     model.compile(
         loss="categorical_crossentropy",
-        optimizer=keras.optimizers.Adam(learning_rate=3e-4),
+        optimizer=keras.optimizers.Adam(learning_rate=5e-3),
     )
     batch_size = 1000
 
     callbacks = [
-        keras.callbacks.ModelCheckpoint(filepath=f"./ckpt/ED_n{n}_l{latent_dim}.keras", save_best_only=True),
+        keras.callbacks.ModelCheckpoint(filepath=f"./ckpt/ED_n{n}_l{latent_dim}/{run}.keras", save_best_only=True),
         keras.callbacks.EarlyStopping(monitor="val_loss", patience=500),
         TqdmCallback(verbose=0)
     ]
@@ -78,7 +80,7 @@ def build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_ta
 def sample_and_predict(n, latent_dim, test_size, max_decoder_seq_length, x_train, x_test):
     # Define sampling models
     # Restore the model and construct the encoder and decoder.
-    model = keras.models.load_model(f"./ckpt/ED_n{n}_l{latent_dim}.keras")
+    model = keras.models.load_model(f"./ckpt/ED_n{n}_l{latent_dim}/{run}.keras")
 
     encoder_inputs = model.input[0]  # input_1
     encoder_outputs, state_h_enc = model.layers[2].output  # lstm_1
@@ -148,13 +150,17 @@ def sample_and_predict(n, latent_dim, test_size, max_decoder_seq_length, x_train
         
     qs = Quantum_Strategy(n)
     results = qs.check_input_output(np.argmax(x_test[:test_size], axis=-1), pred, flatten=False)
-    check = np.sum(results, axis=-1) > 0.8 * n
-    return np.mean(check), np.std(check)
+    check = np.sum(results, axis=-1) > threshold * n
+    mean = np.mean(check)
+    std = 1.96 * np.sqrt(mean * (1 - mean) / len(check))
+    return mean, std
 
 def write_result(n, latent_dim, result):
     # add results to csv file
     # if n, latent_dim not in csv, add new row
     # if n, latent_dim in csv, append mean and std at the end of the row
+    if not os.path.exists("./results"):
+        os.makedirs("./results")
     try:
         with open("./results/ED.csv", "r") as f:
             lines = f.readlines()

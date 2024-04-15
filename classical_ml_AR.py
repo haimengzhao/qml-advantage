@@ -7,6 +7,8 @@ from quantum_model import Quantum_Strategy
 from tqdm import tqdm
 from tqdm.keras import TqdmCallback
 
+threshold = 0.95
+
 def load_data(n, test_size):
     
     data = np.load(f"./data/data_{n}.npz")
@@ -37,7 +39,7 @@ def build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_ta
     y_inputs = keras.Input(shape=(None, 3))
     # stack x and y
     whole_inputs = keras.layers.Concatenate(axis=-1)([x_inputs, y_inputs])
-    gru = keras.layers.GRU(latent_dim, return_sequences=True, return_state=True)
+    gru = keras.layers.GRU(latent_dim, return_sequences=True, return_state=True, bias_initializer=keras.initializers.Constant(-1.0))
     gru_outputs, state = gru(whole_inputs)
     final_outputs = keras.layers.Dense(3, activation="softmax")(gru_outputs)
 
@@ -46,12 +48,12 @@ def build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_ta
     model = keras.Model([x_inputs, y_inputs], final_outputs)
     model.compile(
         loss="categorical_crossentropy",
-        optimizer=keras.optimizers.Adam(learning_rate=1e-3),
+        optimizer=keras.optimizers.Adam(learning_rate=1e-2),
     )
     batch_size = 1000
 
     callbacks = [
-        keras.callbacks.ModelCheckpoint(filepath=f"./ckpt/AR_n{n}_l{latent_dim}.keras", save_best_only=True),
+        keras.callbacks.ModelCheckpoint(filepath=f"./ckpt/AR_n{n}_l{latent_dim}/{run}.keras", save_best_only=True),
         keras.callbacks.EarlyStopping(monitor="val_loss", patience=500),
         TqdmCallback(verbose=0)
     ]
@@ -60,7 +62,7 @@ def build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_ta
         [x_train, decoder_input_data],
         decoder_target_data,
         batch_size=batch_size,
-        epochs=1000,
+        epochs=10000,
         validation_split=0.1,
         callbacks=callbacks,
         verbose=0,
@@ -70,7 +72,7 @@ def build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_ta
 def sample_and_predict(n, latent_dim, test_size, max_decoder_seq_length, x_train, x_test):
     # Define sampling models
     # Restore the model and construct the encoder and decoder.
-    model_pred = keras.models.load_model(f"./ckpt/AR_n{n}_l{latent_dim}.keras")
+    model_pred = keras.models.load_model(f"./ckpt/AR_n{n}_l{latent_dim}/{run}.keras")
 
     x_inputs = model.input[0]  # input_1
     y_inputs = model.input[1]  # input_2
@@ -131,13 +133,18 @@ def sample_and_predict(n, latent_dim, test_size, max_decoder_seq_length, x_train
         
     qs = Quantum_Strategy(n)
     results = qs.check_input_output(np.argmax(x_test[:test_size], axis=-1), pred, flatten=False)
-    check = np.sum(results, axis=-1) > 0.8 * n
-    return np.mean(check), np.std(check)
+    check = np.sum(results, axis=-1) > threshold * n
+    mean = np.mean(check)
+    std = 1.96 * np.sqrt(mean * (1 - mean) / len(check))
+    return mean, std
 
 def write_result(n, latent_dim, result):
     # add results to csv file
     # if n, latent_dim not in csv, add new row
     # if n, latent_dim in csv, append mean and std at the end of the row
+    # create dir if not exist
+    if not os.path.exists("./results"):
+        os.makedirs("./results")
     try:
         with open("./results/AR.csv", "r") as f:
             lines = f.readlines()
