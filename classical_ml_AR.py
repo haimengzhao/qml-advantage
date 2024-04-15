@@ -53,8 +53,8 @@ def build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_ta
     batch_size = 1000
 
     callbacks = [
-        keras.callbacks.ModelCheckpoint(filepath=f"./ckpt/AR_n{n}_l{latent_dim}/{run}.keras", save_best_only=True),
-        keras.callbacks.EarlyStopping(monitor="val_loss", patience=500),
+        keras.callbacks.ModelCheckpoint(filepath=f"./ckpt/AR_n{n}_l{latent_dim}/{run}.keras", save_best_only=True, monitor="loss"),
+        keras.callbacks.EarlyStopping(monitor="loss", patience=500),
         TqdmCallback(verbose=0)
     ]
 
@@ -63,7 +63,6 @@ def build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_ta
         decoder_target_data,
         batch_size=batch_size,
         epochs=10000,
-        validation_split=0.1,
         callbacks=callbacks,
         verbose=0,
     )
