@@ -3,6 +3,7 @@ import pyclifford as pc
 from magic_game import check_answer, num_to_bit, bit_to_num
 from tqdm import tqdm
 from numba import njit
+from multiprocessing import Pool
 
 def SWAP(*qubits):
     assert len(qubits) == 2
@@ -139,17 +140,51 @@ class Quantum_Strategy():
         sample = self.compute_and_sample(inp)
         return inp, sample
     
-    def produce_data(self, n_samples, inp_as_bit=True, save_path=None, progress_bar=True):
-        data = {'X': [], 'Y': []}
-        iterator = range(n_samples) if not progress_bar else tqdm(range(n_samples))
-        for _ in iterator:
-            inp, sample = self.produce_one_data()
-            if inp_as_bit:
-                inp = num_to_bit(inp)
-            data['X'].append(inp)
-            data['Y'].append(sample)
-        data['X'] = np.array(data['X'])
-        data['Y'] = np.array(data['Y'])
-        if save_path is not None:
-            np.savez(save_path, **data)
-        return data
+    def produce_data(self, n_samples, inp_as_bit=True, save_path=None, progress_bar=True, n_jobs=20):
+        if n_jobs == 1:
+            # single process
+            data = {'X': [], 'Y': []}
+            iterator = range(n_samples) if not progress_bar else tqdm(range(n_samples))
+            for _ in iterator:
+                inp, sample = self.produce_one_data()
+                if inp_as_bit:
+                    inp = num_to_bit(inp)
+                data['X'].append(inp)
+                data['Y'].append(sample)
+            data['X'] = np.array(data['X'])
+            data['Y'] = np.array(data['Y'])
+            if save_path is not None:
+                np.savez(save_path, **data)
+            return data
+        else:
+            # multi process
+            assert n_jobs > 1
+            return produce_data_mp(self.n, self.noise, n_samples, inp_as_bit, save_path, progress_bar, n_jobs)
+      
+def worker(args):
+    qs, inp_as_bit = args
+    inp, sample = qs.produce_one_data()
+    if inp_as_bit:
+        inp = num_to_bit(inp)
+    return inp, sample  
+        
+def produce_data_mp(n, noise, n_samples, inp_as_bit=True, save_path=None, progress_bar=True, n_jobs=20):
+    data = {'X': [], 'Y': []}
+    iterator = range(n_samples)
+    qs = Quantum_Strategy(n, noise=noise)
+    
+    with Pool(n_jobs) as pool:
+        args = [(qs, inp_as_bit)] * n_samples
+        if progress_bar:
+            results = list(tqdm(pool.imap(worker, args), total=n_samples))
+        else:
+            results = pool.map(worker, args)
+    
+    data['X'], data['Y'] = zip(*results)
+    data['X'] = np.array(data['X'])
+    data['Y'] = np.array(data['Y'])
+    
+    if save_path is not None:
+        np.savez(save_path, **data)
+        
+    return data
