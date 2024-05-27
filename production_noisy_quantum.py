@@ -16,7 +16,7 @@ res = {}
 for n in tqdm(n_list):
     key = str(n)
     res[key] = []
-    for noise in np.linspace(0, 0.03, 50):
+    for noise in np.linspace(0, 0.03, 200):
         qs = Quantum_Strategy(n, noise=noise)
         data = qs.produce_data(n_shots, progress_bar=False)
         check = qs.check_input_output(data['X'], data['Y'], flatten=False)
