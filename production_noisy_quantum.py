@@ -9,7 +9,7 @@ import scienceplots
 plt.style.use(['science','no-latex'])
 
 # n = 100, n_shots = 1000, time = 1h
-n_list = [10, 20, 50, 100]
+n_list = [200] # [10, 20, 50, 100]
 n_shots = 10000
 
 res = {}
@@ -26,7 +26,7 @@ for n in tqdm(n_list):
         res[key].append([noise, score, std])
     res[key] = np.array(res[key])
     
-    with open("noisy_quantum_model.json", "wb") as f:
+    with open("noisy_quantum_model_200.json", "wb") as f:
         f.write(orjson.dumps(res, option=orjson.OPT_SERIALIZE_NUMPY))
 
 plt.figure(figsize=(6, 4))

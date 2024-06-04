@@ -177,8 +177,8 @@ def write_result(n, latent_dim, result):
 if __name__ == "__main__":
     test_size = 1000
     for n in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
-        for latent_dim in [4, 8, 16, 32, 64, 128, 256, 512]:
-            for run in range(5, 10):
+        for latent_dim in np.floor(2**np.linspace(2, 9, 20)).astype(int).tolist():
+            for run in range(10):
                 print("#"*20 + f"n={n}, latent_dim={latent_dim}, run={run}" + "#"*20)
                 x_train, x_test, decoder_input_data, decoder_target_data, max_decoder_seq_length = load_data(n, test_size)
                 model = build_model_and_train(n, latent_dim, x_train, decoder_input_data, decoder_target_data)
