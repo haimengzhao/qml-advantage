@@ -161,11 +161,11 @@ def write_result(n, latent_dim, result):
     if not os.path.exists("./results"):
         os.makedirs("./results")
     try:
-        with open("./results/ED.csv", "r") as f:
+        with open("./results/ED_1.csv", "r") as f:
             lines = f.readlines()
     except:
         lines = ["n,latent_dim,mean,std\n"]
-    with open("./results/ED.csv", "w") as f:
+    with open("./results/ED_1.csv", "w") as f:
         for line in lines:
             if f"{n},{latent_dim}" in line:
                 f.write(line[:-2] + f",{result[0]},{result[1]}\n")
@@ -176,8 +176,14 @@ def write_result(n, latent_dim, result):
         
 if __name__ == "__main__":
     test_size = 1000
+    # resume = None
+    resume = (2, 30)
     for n in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
         for latent_dim in np.floor(2**np.linspace(2, 9, 20)).astype(int).tolist():
+            # resume
+            if resume is not None:
+                if n < resume[0] or (n == resume[0] and latent_dim < resume[1]):
+                    continue
             for run in range(10):
                 print("#"*20 + f"n={n}, latent_dim={latent_dim}, run={run}" + "#"*20)
                 x_train, x_test, decoder_input_data, decoder_target_data, max_decoder_seq_length = load_data(n, test_size)
