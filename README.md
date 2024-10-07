@@ -1,6 +1,6 @@
 # Entanglement-induced Provable and Robust Quantum Learning Advantages
 
-Welcome to the GitHub repository for the paper "Entanglement-induced Provable and Robust Quantum Learning Advantages".
+Welcome to the GitHub repository for the paper "Entanglement-induced Provable and Robust Quantum Learning Advantages". [(arXiv)](https://arxiv.org/abs/2410.03094)
 
 ## Abstract
 
